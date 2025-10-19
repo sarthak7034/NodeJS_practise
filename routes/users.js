@@ -2,6 +2,10 @@
 // Router creates modular, mountable route handlers
 // Allows separation of route logic into different files
 const express = require("express");
+const {
+  cacheMiddleware,
+  cacheInvalidationMiddleware,
+} = require("../middleware/cacheMiddleware");
 const router = express.Router();
 
 // INTERVIEW CONCEPT: In-Memory Data Storage
@@ -61,32 +65,36 @@ let users = [
  */
 // INTERVIEW CONCEPT: GET Route with Query Parameters and Pagination
 // Demonstrates handling query parameters and implementing pagination
-router.get("/", (req, res) => {
-  // INTERVIEW CONCEPT: Destructuring with Default Values
-  // Extract query parameters with fallback defaults
-  const { page = 1, limit = 10 } = req.query;
+router.get(
+  "/",
+  cacheMiddleware({ ttl: 60 }), // Cache for 1 minute
+  (req, res) => {
+    // INTERVIEW CONCEPT: Destructuring with Default Values
+    // Extract query parameters with fallback defaults
+    const { page = 1, limit = 10 } = req.query;
 
-  // INTERVIEW CONCEPT: Pagination Logic
-  // Calculate start and end indices for data slicing
-  const startIndex = (page - 1) * limit;
-  const endIndex = page * limit;
+    // INTERVIEW CONCEPT: Pagination Logic
+    // Calculate start and end indices for data slicing
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
 
-  // INTERVIEW CONCEPT: Array Methods
-  // slice() creates a shallow copy of array portion
-  const paginatedUsers = users.slice(startIndex, endIndex);
+    // INTERVIEW CONCEPT: Array Methods
+    // slice() creates a shallow copy of array portion
+    const paginatedUsers = users.slice(startIndex, endIndex);
 
-  // INTERVIEW CONCEPT: Response Structure
-  // Return data with metadata (pagination info)
-  // Good API design practice
-  res.json({
-    users: paginatedUsers,
-    pagination: {
-      currentPage: parseInt(page),
-      totalPages: Math.ceil(users.length / limit),
-      totalUsers: users.length,
-    },
-  });
-});
+    // INTERVIEW CONCEPT: Response Structure
+    // Return data with metadata (pagination info)
+    // Good API design practice
+    res.json({
+      users: paginatedUsers,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(users.length / limit),
+        totalUsers: users.length,
+      },
+    });
+  }
+);
 
 /**
  * @swagger
@@ -118,26 +126,30 @@ router.get("/", (req, res) => {
  */
 // INTERVIEW CONCEPT: Route Parameters and Error Handling
 // :id is a route parameter accessible via req.params
-router.get("/:id", (req, res) => {
-  // INTERVIEW CONCEPT: Type Conversion
-  // req.params values are always strings, convert to number
-  const userId = parseInt(req.params.id);
+router.get(
+  "/:id",
+  cacheMiddleware({ ttl: 300 }), // Cache individual users for 5 minutes
+  (req, res) => {
+    // INTERVIEW CONCEPT: Type Conversion
+    // req.params values are always strings, convert to number
+    const userId = parseInt(req.params.id);
 
-  // INTERVIEW CONCEPT: Array.find() Method
-  // Finds first element that matches the condition
-  const user = users.find((u) => u.id === userId);
+    // INTERVIEW CONCEPT: Array.find() Method
+    // Finds first element that matches the condition
+    const user = users.find((u) => u.id === userId);
 
-  // INTERVIEW CONCEPT: HTTP Status Codes and Early Return
-  // 404 for resource not found
-  // Early return prevents further execution
-  if (!user) {
-    return res.status(404).json({ error: "User not found" });
+    // INTERVIEW CONCEPT: HTTP Status Codes and Early Return
+    // 404 for resource not found
+    // Early return prevents further execution
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // INTERVIEW CONCEPT: Successful Response
+    // 200 OK is default status for res.json()
+    res.json(user);
   }
-
-  // INTERVIEW CONCEPT: Successful Response
-  // 200 OK is default status for res.json()
-  res.json(user);
-});
+);
 
 /**
  * @swagger
@@ -359,6 +371,14 @@ router.delete("/:id", (req, res) => {
   // Helps with debugging and audit trails
   res.json({ message: "User deleted successfully", user: deletedUser });
 });
+
+// INTERVIEW CONCEPT: Cache Invalidation on Data Changes
+// Invalidate user-related cache when users are modified
+router.use(
+  cacheInvalidationMiddleware({
+    keyPatterns: ["api:*users*"],
+  })
+);
 
 // INTERVIEW CONCEPT: Module Exports
 // Export the router to be used in main server file

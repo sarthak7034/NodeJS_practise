@@ -160,6 +160,7 @@ app.use(
 app.use("/api/users", require("./routes/users"));
 app.use("/api/posts", require("./routes/posts"));
 app.use("/api/compute", require("./routes/compute"));
+app.use("/api/cache", require("./routes/cache"));
 
 // INTERVIEW CONCEPT: Health Check Endpoint
 // Essential for monitoring, load balancers, and container orchestration
@@ -209,6 +210,7 @@ app.get("/", (req, res) => {
       users: "/api/users",
       posts: "/api/posts",
       compute: "/api/compute",
+      cache: "/api/cache",
       docs: "/api-docs",
     },
   });

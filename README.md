@@ -39,6 +39,15 @@ A basic REST API built with Express.js covering fundamental Node.js concepts for
 - `POST /api/compute/fibonacci` - Calculate Fibonacci (blocking vs non-blocking)
 - `GET /api/compute/stats` - System and process statistics
 
+#### Cache (Caching Strategies Demo)
+
+- `GET /api/cache/strategies` - Available cache strategies
+- `POST /api/cache/strategy` - Switch cache strategy
+- `GET /api/cache/stats` - Cache performance statistics
+- `GET /api/cache/health` - Cache health check
+- `GET /api/cache/demo/slow-data` - Cached slow data (auto-caching demo)
+- `GET /api/cache/demo/user-data` - User-specific cached data
+
 #### Utility
 
 - `GET /` - API information
@@ -73,6 +82,8 @@ A basic REST API built with Express.js covering fundamental Node.js concepts for
 3. Visit `http://localhost:3000` to see the API information
 4. **View Interactive API Documentation**: Visit `http://localhost:3000/api-docs` to explore the Swagger UI
 5. **Test Multi-threading Features**: Try the compute endpoints to see worker threads in action
+6. **Test Caching Features**: Use cache endpoints to see different caching strategies
+7. **Optional Redis Setup**: Install Redis for distributed caching (falls back to in-memory if not available)
 
 ## Interview Topics Demonstrated
 
@@ -91,6 +102,10 @@ A basic REST API built with Express.js covering fundamental Node.js concepts for
 - **Clustering for multi-core utilization**
 - **CPU-intensive task handling**
 - **Process and thread management**
+- **Caching Strategies (In-memory & Redis)**
+- **Cache middleware and automatic caching**
+- **Cache invalidation patterns**
+- **Performance optimization with caching**
 
 ## Next Steps
 
@@ -102,6 +117,7 @@ This basic API can be enhanced with:
 - Logging frameworks
 - Testing (Jest, Mocha)
 - ~~API documentation (Swagger)~~ ✅ **IMPLEMENTED**
+- ~~Caching strategies~~ ✅ **IMPLEMENTED**
 - Rate limiting
 - Caching strategies
 - WebSocket implementation
