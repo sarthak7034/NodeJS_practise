@@ -41,12 +41,21 @@ A basic REST API built with Express.js covering fundamental Node.js concepts for
 
 #### Cache (Caching Strategies Demo)
 
+**Basic Caching**:
+
 - `GET /api/cache/strategies` - Available cache strategies
 - `POST /api/cache/strategy` - Switch cache strategy
 - `GET /api/cache/stats` - Cache performance statistics
 - `GET /api/cache/health` - Cache health check
 - `GET /api/cache/demo/slow-data` - Cached slow data (auto-caching demo)
 - `GET /api/cache/demo/user-data` - User-specific cached data
+
+**Advanced Caching Strategies**:
+
+- `POST /api/cache/advanced/stampede-protection` - Cache stampede prevention
+- `GET /api/cache/advanced/compression` - Cache compression demo
+- `GET /api/cache/advanced/metrics` - Advanced caching metrics
+- `POST /api/cache/advanced/warm` - Cache warming strategy
 
 #### Utility
 
@@ -103,6 +112,13 @@ A basic REST API built with Express.js covering fundamental Node.js concepts for
 - **CPU-intensive task handling**
 - **Process and thread management**
 - **Caching Strategies (In-memory & Redis)**
+- **Advanced Caching Patterns**:
+  - Cache stampede protection
+  - Stale-while-revalidate pattern
+  - Write-through and write-behind caching
+  - Multi-level caching (L1/L2)
+  - Cache compression and partitioning
+  - Circuit breaker pattern for cache resilience
 - **Cache middleware and automatic caching**
 - **Cache invalidation patterns**
 - **Performance optimization with caching**
@@ -117,8 +133,7 @@ This basic API can be enhanced with:
 - Logging frameworks
 - Testing (Jest, Mocha)
 - ~~API documentation (Swagger)~~ ✅ **IMPLEMENTED**
-- ~~Caching strategies~~ ✅ **IMPLEMENTED**
+- ~~Caching strategies~~ ✅ **IMPLEMENTED** (Basic + Advanced)
 - Rate limiting
-- Caching strategies
 - WebSocket implementation
 - Microservices patterns

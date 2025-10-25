@@ -146,7 +146,7 @@ const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
 // Serve Swagger documentation
 app.use(
-  "/api-docs",
+  "/docs",
   swaggerUi.serve,
   swaggerUi.setup(swaggerSpec, {
     customCss: ".swagger-ui .topbar { display: none }",
@@ -204,14 +204,14 @@ app.get("/", (req, res) => {
   res.json({
     message: "Node.js Interview Preparation API",
     version: "1.0.0",
-    documentation: "/api-docs",
+    documentation: "/docs",
     endpoints: {
       health: "/health",
       users: "/api/users",
       posts: "/api/posts",
       compute: "/api/compute",
       cache: "/api/cache",
-      docs: "/api-docs",
+      docs: "/docs",
     },
   });
 });

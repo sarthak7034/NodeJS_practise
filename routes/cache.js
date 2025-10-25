@@ -4,6 +4,9 @@
 const express = require("express");
 const { cacheManager } = require("../cache/CacheManager");
 const RedisCacheStrategy = require("../cache/RedisCache");
+const { advancedCacheStrategies } = require("../cache/AdvancedCacheStrategies");
+const CacheCompression = require("../cache/CacheCompression");
+const CachePartitioning = require("../cache/CachePartitioning");
 const {
   cacheMiddleware,
   cacheInvalidationMiddleware,
@@ -13,6 +16,8 @@ const router = express.Router();
 
 // INTERVIEW CONCEPT: Cache Strategy Initialization
 let redisStrategy = null;
+let compressionCache = null;
+let partitionedCache = null;
 
 // Initialize Redis if available
 async function initializeRedis() {
@@ -29,8 +34,27 @@ async function initializeRedis() {
   }
 }
 
-// Initialize Redis on module load
+// Initialize advanced caching features
+function initializeAdvancedCaching() {
+  // Initialize compression cache
+  const compression = new CacheCompression({
+    algorithm: "gzip",
+    threshold: 1024,
+    level: 6,
+  });
+  compressionCache = compression.createCompressedCacheWrapper(cacheManager);
+
+  // Initialize partitioned cache (using multiple instances of the same cache for demo)
+  partitionedCache = new CachePartitioning([cacheManager, cacheManager], {
+    strategy: "consistent-hash",
+  });
+
+  console.log("Advanced caching features initialized");
+}
+
+// Initialize on module load
 initializeRedis();
+initializeAdvancedCaching();
 
 /**
  * @swagger
@@ -69,19 +93,6 @@ initializeRedis();
  *     responses:
  *       200:
  *         description: Cache strategies retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 current:
- *                   type: string
- *                 available:
- *                   type: array
- *                   items:
- *                     type: string
- *                 redis_available:
- *                   type: boolean
  */
 // INTERVIEW CONCEPT: Cache Strategy Management
 router.get("/strategies", async (req, res) => {
@@ -103,23 +114,6 @@ router.get("/strategies", async (req, res) => {
  *     summary: Switch cache strategy
  *     description: Change the active caching strategy
  *     tags: [Cache]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - strategy
- *             properties:
- *               strategy:
- *                 type: string
- *                 enum: [memory, nodeCache, redis]
- *     responses:
- *       200:
- *         description: Strategy switched successfully
- *       400:
- *         description: Invalid strategy or strategy not available
  */
 router.post("/strategy", async (req, res) => {
   try {
@@ -158,13 +152,6 @@ router.post("/strategy", async (req, res) => {
  *     summary: Get cache statistics
  *     description: Returns detailed statistics about cache performance and usage
  *     tags: [Cache]
- *     responses:
- *       200:
- *         description: Cache statistics retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/CacheStats'
  */
 // INTERVIEW CONCEPT: Cache Performance Monitoring
 router.get("/stats", async (req, res) => {
@@ -190,20 +177,6 @@ router.get("/stats", async (req, res) => {
  *     summary: Check cache health
  *     description: Performs a health check on the current cache strategy
  *     tags: [Cache]
- *     responses:
- *       200:
- *         description: Cache health check completed
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 healthy:
- *                   type: boolean
- *                 strategy:
- *                   type: string
- *                 timestamp:
- *                   type: string
  */
 router.get("/health", async (req, res) => {
   try {
@@ -218,158 +191,121 @@ router.get("/health", async (req, res) => {
     });
   }
 });
+// INTERVIEW CONCEPT: Advanced Caching Strategies Endpoints
 
 /**
  * @swagger
- * /api/cache/set:
+ * /api/cache/advanced/stampede-protection:
  *   post:
- *     summary: Set cache entry
- *     description: Manually set a cache entry with optional TTL
- *     tags: [Cache]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/CacheEntry'
- *     responses:
- *       200:
- *         description: Cache entry set successfully
- *       400:
- *         description: Invalid input data
+ *     summary: Test cache stampede protection
+ *     description: Demonstrates cache-aside with lock to prevent cache stampede
+ *     tags: [Cache - Advanced]
  */
-// INTERVIEW CONCEPT: Manual Cache Management
-router.post("/set", async (req, res) => {
+router.post("/advanced/stampede-protection", async (req, res) => {
   try {
-    const { key, value, ttl = 300 } = req.body;
+    const { key = "stampede-test", simulateLoad = true } = req.body;
 
-    if (!key || value === undefined) {
-      return res.status(400).json({ error: "Key and value are required" });
-    }
+    const dataLoader = async () => {
+      if (simulateLoad) {
+        // Simulate expensive operation
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+      return {
+        message: "Data loaded with stampede protection",
+        timestamp: new Date().toISOString(),
+        loadTime: simulateLoad ? "2000ms" : "0ms",
+      };
+    };
 
-    const success = await cacheManager.set(key, value, ttl);
+    const startTime = Date.now();
+    const data = await advancedCacheStrategies.cacheAsideWithLock(
+      key,
+      dataLoader,
+      {
+        ttl: 300,
+        lockTimeout: 5000,
+      }
+    );
+    const responseTime = Date.now() - startTime;
 
-    if (success) {
-      res.json({
-        message: "Cache entry set successfully",
-        key,
-        ttl,
-        strategy: cacheManager.currentStrategy,
-      });
-    } else {
-      res.status(500).json({ error: "Failed to set cache entry" });
-    }
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * @swagger
- * /api/cache/get/{key}:
- *   get:
- *     summary: Get cache entry
- *     description: Retrieve a cache entry by key
- *     tags: [Cache]
- *     parameters:
- *       - in: path
- *         name: key
- *         required: true
- *         schema:
- *           type: string
- *         description: Cache key to retrieve
- *     responses:
- *       200:
- *         description: Cache entry retrieved successfully
- *       404:
- *         description: Cache entry not found
- */
-router.get("/get/:key", async (req, res) => {
-  try {
-    const { key } = req.params;
-    const value = await cacheManager.get(key);
-
-    if (value !== null) {
-      res.json({
-        key,
-        value,
-        found: true,
-        strategy: cacheManager.currentStrategy,
-      });
-    } else {
-      res.status(404).json({
-        key,
-        found: false,
-        message: "Cache entry not found",
-      });
-    }
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * @swagger
- * /api/cache/delete/{key}:
- *   delete:
- *     summary: Delete cache entry
- *     description: Remove a cache entry by key
- *     tags: [Cache]
- *     parameters:
- *       - in: path
- *         name: key
- *         required: true
- *         schema:
- *           type: string
- *         description: Cache key to delete
- *     responses:
- *       200:
- *         description: Cache entry deleted successfully
- *       404:
- *         description: Cache entry not found
- */
-router.delete("/delete/:key", async (req, res) => {
-  try {
-    const { key } = req.params;
-    const deleted = await cacheManager.del(key);
-
-    if (deleted) {
-      res.json({
-        message: "Cache entry deleted successfully",
-        key,
-        deleted: true,
-      });
-    } else {
-      res.status(404).json({
-        message: "Cache entry not found",
-        key,
-        deleted: false,
-      });
-    }
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * @swagger
- * /api/cache/clear:
- *   delete:
- *     summary: Clear all cache entries
- *     description: Remove all entries from the current cache strategy
- *     tags: [Cache]
- *     responses:
- *       200:
- *         description: Cache cleared successfully
- */
-router.delete("/clear", async (req, res) => {
-  try {
-    await cacheManager.clear();
     res.json({
-      message: "Cache cleared successfully",
-      strategy: cacheManager.currentStrategy,
+      data,
+      responseTime: `${responseTime}ms`,
+      metrics: advancedCacheStrategies.getMetrics(),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/cache/advanced/compression:
+ *   get:
+ *     summary: Test cache compression
+ *     description: Demonstrates automatic compression for large cache entries
+ *     tags: [Cache - Advanced]
+ */
+router.get("/advanced/compression", async (req, res) => {
+  try {
+    const { size = "medium" } = req.query;
+
+    // Generate test data of different sizes
+    const testData = {
+      small: { message: "Small data", items: Array(10).fill("item") },
+      medium: {
+        message: "Medium data",
+        items: Array(100).fill("detailed item with more content"),
+      },
+      large: {
+        message: "Large data",
+        items: Array(1000).fill(
+          "very detailed item with lots of content and data"
+        ),
+      },
+    };
+
+    const key = `compression-test-${size}`;
+    const data = testData[size];
+
+    // Test with compression
+    await compressionCache.set(key, data, 300);
+    const retrieved = await compressionCache.get(key);
+
+    // Get compression stats
+    const stats = await compressionCache.getStats();
+
+    res.json({
+      original: data,
+      retrieved,
+      dataMatches: JSON.stringify(data) === JSON.stringify(retrieved),
+      compressionStats: stats.compression,
+      pattern: "compression",
       timestamp: new Date().toISOString(),
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/cache/advanced/metrics:
+ *   get:
+ *     summary: Get advanced caching metrics
+ *     description: Returns comprehensive metrics for all advanced caching strategies
+ *     tags: [Cache - Advanced]
+ */
+router.get("/advanced/metrics", async (req, res) => {
+  try {
+    const metrics = {
+      advancedStrategies: advancedCacheStrategies.getMetrics(),
+      compression: compressionCache ? await compressionCache.getStats() : null,
+      partitioning: partitionedCache ? await partitionedCache.getStats() : null,
+      timestamp: new Date().toISOString(),
+    };
+
+    res.json(metrics);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -384,18 +320,6 @@ router.delete("/clear", async (req, res) => {
  *     summary: Get slow data (cached)
  *     description: Demonstrates automatic caching of slow API responses
  *     tags: [Cache]
- *     responses:
- *       200:
- *         description: Data retrieved successfully
- *         headers:
- *           X-Cache:
- *             description: Cache status (HIT or MISS)
- *             schema:
- *               type: string
- *           X-Cache-Key:
- *             description: Cache key used
- *             schema:
- *               type: string
  */
 // INTERVIEW CONCEPT: Automatic Response Caching
 router.get(
@@ -423,15 +347,6 @@ router.get(
  *     summary: Get user-specific cached data
  *     description: Demonstrates user-aware caching
  *     tags: [Cache]
- *     parameters:
- *       - in: query
- *         name: userId
- *         schema:
- *           type: string
- *         description: User ID for personalized caching
- *     responses:
- *       200:
- *         description: User data retrieved successfully
  */
 // INTERVIEW CONCEPT: User-Aware Caching
 router.get(
@@ -468,24 +383,5 @@ router.use(
     keyPatterns: ["api:*cache*", "user-data:*"],
   })
 );
-
-/**
- * @swagger
- * /api/cache/demo/invalidate:
- *   post:
- *     summary: Trigger cache invalidation
- *     description: Demonstrates cache invalidation when data changes
- *     tags: [Cache]
- *     responses:
- *       200:
- *         description: Cache invalidated successfully
- */
-router.post("/demo/invalidate", async (req, res) => {
-  // This POST request will trigger cache invalidation
-  res.json({
-    message: "Data updated - cache invalidated",
-    timestamp: new Date().toISOString(),
-  });
-});
 
 module.exports = router;
