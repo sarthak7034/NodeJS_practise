@@ -3,6 +3,8 @@
 // ES6 modules (import/export) can be used with "type": "module" in package.json
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 const swaggerJsdoc = require("swagger-jsdoc");
 const swaggerUi = require("swagger-ui-express");
 
@@ -25,6 +27,21 @@ const PORT = process.env.PORT || 3000;
 // Middleware functions execute during request-response cycle
 // They have access to req, res, and next() function
 // Order matters - middleware executes in the order it's defined
+
+// INTERVIEW CONCEPT: Security Middleware
+// Helmet helps secure Express apps by setting various HTTP headers
+app.use(helmet());
+
+// INTERVIEW CONCEPT: Rate Limiting
+// Prevents abuse by limiting requests per IP address
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: {
+    error: "Too many requests from this IP, please try again later.",
+  },
+});
+app.use(limiter);
 
 // CORS middleware - handles Cross-Origin Resource Sharing
 // Essential for APIs that serve frontend applications from different domains
@@ -157,6 +174,8 @@ app.use(
 // INTERVIEW CONCEPT: Route Mounting and Modular Routing
 // app.use() mounts router modules at specific paths
 // This promotes code organization and separation of concerns
+app.use("/api/auth", require("./auth/authRoutes"));
+app.use("/api/admin", require("./routes/admin"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/posts", require("./routes/posts"));
 app.use("/api/compute", require("./routes/compute"));
@@ -207,6 +226,8 @@ app.get("/", (req, res) => {
     documentation: "/docs",
     endpoints: {
       health: "/health",
+      auth: "/api/auth",
+      admin: "/api/admin",
       users: "/api/users",
       posts: "/api/posts",
       compute: "/api/compute",

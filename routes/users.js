@@ -6,6 +6,11 @@ const {
   cacheMiddleware,
   cacheInvalidationMiddleware,
 } = require("../middleware/cacheMiddleware");
+const {
+  authenticate,
+  authorize,
+  optionalAuth,
+} = require("../auth/authMiddleware");
 const router = express.Router();
 
 // INTERVIEW CONCEPT: In-Memory Data Storage
@@ -67,6 +72,7 @@ let users = [
 // Demonstrates handling query parameters and implementing pagination
 router.get(
   "/",
+  optionalAuth, // Optional authentication - shows different data based on auth status
   cacheMiddleware({ ttl: 60 }), // Cache for 1 minute
   (req, res) => {
     // INTERVIEW CONCEPT: Destructuring with Default Values
@@ -202,7 +208,7 @@ router.get(
  */
 // INTERVIEW CONCEPT: POST Route for Resource Creation
 // Demonstrates data validation, conflict checking, and resource creation
-router.post("/", (req, res) => {
+router.post("/", authenticate, authorize("admin"), (req, res) => {
   // INTERVIEW CONCEPT: Request Body Destructuring
   // Extract data from request body (parsed by express.json() middleware)
   const { name, email, age } = req.body;
@@ -289,7 +295,7 @@ router.post("/", (req, res) => {
  */
 // INTERVIEW CONCEPT: PUT Route for Resource Updates
 // Demonstrates partial updates and object merging
-router.put("/:id", (req, res) => {
+router.put("/:id", authenticate, authorize("admin"), (req, res) => {
   const userId = parseInt(req.params.id);
 
   // INTERVIEW CONCEPT: Array.findIndex() Method
@@ -353,7 +359,7 @@ router.put("/:id", (req, res) => {
  */
 // INTERVIEW CONCEPT: DELETE Route for Resource Removal
 // Demonstrates safe deletion with confirmation response
-router.delete("/:id", (req, res) => {
+router.delete("/:id", authenticate, authorize("admin"), (req, res) => {
   const userId = parseInt(req.params.id);
   const userIndex = users.findIndex((u) => u.id === userId);
 
