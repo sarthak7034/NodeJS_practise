@@ -1,139 +1,233 @@
-# Node.js Interview Preparation API
+# Input Validation & Rate Limiting Library
 
-A basic REST API built with Express.js covering fundamental Node.js concepts for interview preparation.
+A comprehensive Node.js library for input validation, data sanitization, and rate limiting.
 
-## Features Covered
+## Features
 
-### Basic Concepts
+### Validation
 
-- Express.js server setup
-- Middleware usage (CORS, JSON parsing, logging)
-- RESTful API design
-- Route handling and parameters
-- Error handling
-- Environment variables
-- In-memory data storage
-- **API Documentation with Swagger/OpenAPI**
+- Chainable validation rules
+- 30+ pre-built validators
+- Custom validation functions
+- Express middleware support
+- Detailed error messages
 
-### API Endpoints
+### Sanitization
 
-#### Users
+- String sanitizers (trim, escape, normalize)
+- Type conversion (number, boolean, date)
+- Array and object sanitizers
+- Email normalization
 
-- `GET /api/users` - Get all users (with pagination)
-- `GET /api/users/:id` - Get user by ID
-- `POST /api/users` - Create new user
-- `PUT /api/users/:id` - Update user
-- `DELETE /api/users/:id` - Delete user
+### Rate Limiting
 
-#### Posts
+- Multiple strategies (Fixed Window, Sliding Window, Token Bucket)
+- Memory and Redis storage
+- Flexible key generation (IP, User, API Key, etc.)
+- Pre-configured presets for common use cases
+- Custom handlers and callbacks
 
-- `GET /api/posts` - Get all posts (with filtering and sorting)
-- `GET /api/posts/:id` - Get post by ID
-- `POST /api/posts` - Create new post
-- `PUT /api/posts/:id` - Update post
-- `DELETE /api/posts/:id` - Delete post
+## Installation
 
-#### Compute (Multi-threading Demo)
+```bash
+npm install
+```
 
-- `POST /api/compute/primes` - Find prime numbers using worker threads
-- `POST /api/compute/fibonacci` - Calculate Fibonacci (blocking vs non-blocking)
-- `GET /api/compute/stats` - System and process statistics
+## Quick Start
 
-#### Cache (Caching Strategies Demo)
+### Validation
 
-**Basic Caching**:
+```javascript
+const { Validator } = require("./validation");
 
-- `GET /api/cache/strategies` - Available cache strategies
-- `POST /api/cache/strategy` - Switch cache strategy
-- `GET /api/cache/stats` - Cache performance statistics
-- `GET /api/cache/health` - Cache health check
-- `GET /api/cache/demo/slow-data` - Cached slow data (auto-caching demo)
-- `GET /api/cache/demo/user-data` - User-specific cached data
+const validator = new Validator();
 
-**Advanced Caching Strategies**:
+validator.field("email").required().email();
 
-- `POST /api/cache/advanced/stampede-protection` - Cache stampede prevention
-- `GET /api/cache/advanced/compression` - Cache compression demo
-- `GET /api/cache/advanced/metrics` - Advanced caching metrics
-- `POST /api/cache/advanced/warm` - Cache warming strategy
+validator.field("age").number().min(18);
 
-#### Utility
+try {
+  validator.validate({ email: "user@example.com", age: 25 });
+  console.log("Valid!");
+} catch (error) {
+  console.log(error.errors);
+}
+```
 
-- `GET /` - API information
-- `GET /health` - Health check
+### Rate Limiting
 
-## Getting Started
+```javascript
+const { presets } = require("./rate-limiting");
+const express = require("express");
+const app = express();
 
-1. Install dependencies:
+// Apply rate limiting
+app.use("/api/", presets.api().middleware());
 
-   ```bash
-   npm install
-   ```
+app.post("/api/login", presets.auth().middleware(), (req, res) => {
+  res.json({ success: true });
+});
+```
 
-2. Start the server:
+## Validation API
 
-   ```bash
-   npm start
-   ```
+### Basic Rules
 
-   Or for development with auto-reload:
+```javascript
+validator
+  .field("username")
+  .required()
+  .string()
+  .min(3)
+  .max(20)
+  .pattern(/^[a-zA-Z0-9_]+$/);
+```
 
-   ```bash
-   npm run dev
-   ```
+### Common Validators
 
-   **For clustered mode (multi-process):**
+```javascript
+const { commonValidators } = require("./validation");
 
-   ```bash
-   npm run cluster
-   ```
+validator.field("email").custom(commonValidators.isEmail);
+validator.field("url").custom(commonValidators.isURL);
+validator.field("phone").custom(commonValidators.isPhoneNumber);
+validator.field("password").custom(commonValidators.isStrongPassword);
+```
 
-3. Visit `http://localhost:3000` to see the API information
-4. **View Interactive API Documentation**: Visit `http://localhost:3000/api-docs` to explore the Swagger UI
-5. **Test Multi-threading Features**: Try the compute endpoints to see worker threads in action
-6. **Test Caching Features**: Use cache endpoints to see different caching strategies
-7. **Optional Redis Setup**: Install Redis for distributed caching (falls back to in-memory if not available)
+### Sanitizers
 
-## Interview Topics Demonstrated
+```javascript
+const { sanitizers } = require("./validation");
 
-- **Express.js fundamentals**
-- **Middleware concepts**
-- **HTTP methods and status codes**
-- **Request/Response handling**
-- **Error handling patterns**
-- **Data validation**
-- **Query parameters and filtering**
-- **RESTful API design principles**
-- **Environment configuration**
-- **API Documentation (Swagger/OpenAPI)**
-- **Interactive API testing**
-- **Multi-threading with Worker Threads**
-- **Clustering for multi-core utilization**
-- **CPU-intensive task handling**
-- **Process and thread management**
-- **Caching Strategies (In-memory & Redis)**
-- **Advanced Caching Patterns**:
-  - Cache stampede protection
-  - Stale-while-revalidate pattern
-  - Write-through and write-behind caching
-  - Multi-level caching (L1/L2)
-  - Cache compression and partitioning
-  - Circuit breaker pattern for cache resilience
-- **Cache middleware and automatic caching**
-- **Cache invalidation patterns**
-- **Performance optimization with caching**
+const clean = sanitizers.trim(input);
+const email = sanitizers.normalizeEmail(input);
+const safe = sanitizers.escape(input);
+```
 
-## Next Steps
+### Express Middleware
 
-This basic API can be enhanced with:
+```javascript
+const { validate } = require("./validation");
 
-- Database integration (MongoDB, PostgreSQL)
-- Authentication and authorization
-- Input validation libraries
-- Logging frameworks
-- Testing (Jest, Mocha)
-- ~~API documentation (Swagger)~~ ✅ **IMPLEMENTED**
-- ~~Caching strategies~~ ✅ **IMPLEMENTED** (Basic + Advanced)
-- Rate limiting
-- WebSocket implementation
-- Microservices patterns
+app.post("/users", validate(userValidator), (req, res) => {
+  // req.body is validated
+});
+```
+
+## Rate Limiting API
+
+### Basic Usage
+
+```javascript
+const { RateLimiter } = require("./rate-limiting");
+
+const limiter = new RateLimiter({
+  windowMs: 60 * 1000, // 1 minute
+  maxRequests: 100, // 100 requests per minute
+});
+
+app.use(limiter.middleware());
+```
+
+### Presets
+
+```javascript
+const { presets } = require("./rate-limiting");
+
+// Authentication (5 requests per 15 minutes)
+app.post("/login", presets.auth().middleware());
+
+// API endpoints (60 requests per minute)
+app.use("/api/", presets.api().middleware());
+
+// Public endpoints (100 requests per minute)
+app.use("/public/", presets.public().middleware());
+
+// File uploads (10 requests per hour)
+app.post("/upload", presets.upload().middleware());
+```
+
+### Key Generators
+
+```javascript
+const { keyGenerators } = require("./rate-limiting");
+
+// By IP address
+const limiter = new RateLimiter({
+  keyGenerator: keyGenerators.byIP,
+});
+
+// By user ID
+const limiter = new RateLimiter({
+  keyGenerator: keyGenerators.byUserID,
+});
+
+// By API key
+const limiter = new RateLimiter({
+  keyGenerator: keyGenerators.byAPIKey,
+});
+
+// Custom
+const limiter = new RateLimiter({
+  keyGenerator: (req) => req.headers["x-custom-id"],
+});
+```
+
+### Strategies
+
+#### Fixed Window (default)
+
+```javascript
+const { RateLimiter } = require("./rate-limiting");
+const limiter = new RateLimiter({ windowMs: 60000, maxRequests: 100 });
+```
+
+#### Sliding Window
+
+```javascript
+const { SlidingWindowRateLimiter } = require("./rate-limiting");
+const limiter = new SlidingWindowRateLimiter({
+  windowMs: 60000,
+  maxRequests: 100,
+});
+```
+
+#### Token Bucket
+
+```javascript
+const { TokenBucketRateLimiter } = require("./rate-limiting");
+const limiter = new TokenBucketRateLimiter({ capacity: 100, refillRate: 10 });
+```
+
+### Redis Store
+
+```javascript
+const { RateLimiter, RedisStore } = require("./rate-limiting");
+const redis = require("redis");
+
+const client = redis.createClient();
+const limiter = new RateLimiter({
+  store: new RedisStore(client),
+});
+```
+
+### Custom Handlers
+
+```javascript
+const limiter = new RateLimiter({
+  handler: (req, res) => {
+    res.status(429).json({ error: "Too many requests" });
+  },
+  onLimitReached: (req, key) => {
+    console.log(`Rate limit exceeded: ${key}`);
+  },
+});
+```
+
+## Examples
+
+See `validation/examples.js` and `rate-limiting/examples.js` for complete examples.
+
+## License
+
+MIT
